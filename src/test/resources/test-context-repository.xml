@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+       xmlns:mongo="http://www.springframework.org/schema/data/mongo"
+       xmlns:repository="http://www.springframework.org/schema/data/repository"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+           http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
+           http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+           http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa.xsd
+           http://www.springframework.org/schema/data/mongo http://www.springframework.org/schema/data/mongo/spring-mongo.xsd
+           http://www.springframework.org/schema/data/repository http://www.springframework.org/schema/data/repository/spring-repository.xsd">
+ 
+ 	<jpa:repositories base-package="com.plantronics.platform.core.repository" factory-class="com.plantronics.platform.core.repository.jpa.support.GenericJpaRepositoryFactoryBean">
+ 		<repository:include-filter type="annotation" expression="com.plantronics.platform.core.repository.jpa.support.JpaRepositorySupport"/>
+ 	</jpa:repositories>
+
+
+    <!-- This will ensure that hibernate or jpa exceptions are automatically translated into
+        Spring's generic DataAccessException hierarchy -->
+    <bean class="org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor"/>
+
+    <!-- product code uses Java Config Class for this -->
+
+    <mongo:mongo id="mongoConnection" host="localhost" port ="27017"/>
+    <bean id="mongoDbFactory" class="com.plantronics.platform.core.repository.mongodb.PltSimpleMongoDbFactory">
+        <constructor-arg ref="mongoConnection"/>
+        <constructor-arg name="databaseName" value="mockMongoDB"/>
+    </bean>
+    <bean id="mongoTemplate" class="org.springframework.data.mongodb.core.MongoTemplate">
+        <constructor-arg name="mongoDbFactory" ref="mongoDbFactory"/>
+        <!--  Need to specify the writeConcern as follows (rather than as an attribute of the mongo
+        connection) or the write concern will default to SAFE which causes a norepl exception on the tests  -->
+        <property name="writeConcern">
+            <util:constant static-field="com.mongodb.WriteConcern.NORMAL" />
+        </property>
+    </bean>
+    <!--
+    <mongo:repositories base-package="com.plantronics.platform.core.repository.mongodb"
+         factory-class="com.plantronics.platform.core.repository.mongodb.metrics.support.MetricsRepositoryFactoryBean" />
+-->
+	<!-- Adding mongo gridsfs -->
+    <mongo:db-factory host="localhost" port ="27017" dbname="testReports" />
+    <mongo:mapping-converter id="converter" db-factory-ref="mongoDbFactory" />
+	
+	<mongo:repositories base-package="com.plantronics.platform.core.repository.mongodb">
+    	<repository:include-filter type="annotation" expression="com.plantronics.platform.core.repository.mongodb.reporting.support.ReportsRepositorySupport"/>
+    </mongo:repositories>
+    
+    <bean id="gridFsTemplate" class="org.springframework.data.mongodb.gridfs.GridFsTemplate">
+        <constructor-arg ref="mongoDbFactory"/>
+        <constructor-arg ref="converter"/>
+    </bean>
+    <!-- Initialize Application Properties -->
+    <bean id="applicationProperties" class="com.plantronics.platform.core.provider.ApplicationProperties"/>
+
+</beans>

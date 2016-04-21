@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:cache="http://www.springframework.org/schema/cache"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache.xsd"
+       default-autowire="byName">
+
+	<context:component-scan base-package="com.plantronics.platform" />
+     
+	<aop:aspectj-autoproxy/>
+	<!-- Needed because there exists application property that is loaded from servlet context -->
+	<bean id="mockServletContext" class="org.springframework.mock.web.MockServletContext" />
+	
+    <bean id="flowLoggingAspect" class="com.plantronics.platform.core.common.aop.FlowLoggingAspect" />
+	<bean id="instrumentationAspect" class="com.plantronics.platform.core.common.aop.InstrumentationAspect" />
+		
+	<aop:config>
+		<!-- Pointcuts for custom annotated methods -->
+		<aop:pointcut id="flow" expression="execution(public * com.plantronics.platform..*.*(..)) and @annotation(flow)"/>
+		<aop:pointcut id="instrument" expression="execution(public * com.plantronics.platform..*.*(..)) and @annotation(instrument)"/>
+	
+		<!-- Default pointcuts -->
+		<aop:pointcut id="core-service" expression="execution(public * com.plantronics.platform..*.*(..)) and (@within(org.springframework.stereotype.Service) or @within(com.plantronics.platform.core.common.aop.stereotype.ServiceSupport))"/>
+        <aop:pointcut id="core-repository" expression="execution(public * org.springframework.data.repository.Repository+.*(..))"/>
+        <aop:pointcut id="core-security" expression="execution(public * com.plantronics.platform.core.security..*.*(..))"/>
+	
+		<aop:aspect id="instrumentAnnotationHandler" ref="instrumentationAspect">
+			<aop:around pointcut-ref="instrument" method="instrument" arg-names="instrument"/>
+            <aop:around pointcut-ref="core-service" method="debug"/>
+            <aop:around pointcut-ref="core-repository" method="trace"/>
+		</aop:aspect>
+        <aop:aspect id="flowAnnotationHandler" ref="flowLoggingAspect">
+    		<aop:around pointcut-ref="flow" method="log" arg-names="flow"/>
+            <aop:around pointcut-ref="core-service" method="trace"/>
+            <aop:around pointcut-ref="core-repository" method="trace"/>
+    	</aop:aspect>
+	</aop:config>		
+	
+	
+	<!-- Translating exceptions from service layer -->
+	<bean id="dataAccessExceptionTranslator" class="com.plantronics.platform.core.common.aop.DataAccessExceptionTranslator" />
+	<bean id="exceptionTranslationAspect" class="com.plantronics.platform.core.common.aop.GlobalCoreServiceErrorInterceptor">
+		<property name="dataAccessExceptionTranslator" ref="dataAccessExceptionTranslator"/>
+	</bean>
+	
+	<!-- Initialize Application Properties -->
+	<bean id="applicationProperties" class="com.plantronics.platform.core.provider.ApplicationProperties"/>
+	
+	<bean id="awsClientUtil" class="com.plantronics.platform.core.util.MockAwsClientUtil" />
+	<bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+        <property name="basenames">
+            <list>
+                <value>Resources</value>
+            </list>
+        </property>
+    </bean>
+    
+    <bean id="statusMessageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+        <property name="basenames">
+            <list>
+                <value>statusMessages</value>
+            </list>
+        </property>
+    </bean>
+	
+	<bean id="dataSource" class="org.springframework.jndi.JndiObjectFactoryBean">
+    	<property name="jndiName">
+        	<value>jdbc/ContextServerDataSource</value>
+        </property>
+   	</bean>
+    
+    <!-- Read JNDI and cache the data into JndiInfo bean -->
+    <!-- TODO mailTemplateDir, privateKeyPath - figure out a way to make there realtive paths or non user specific -->
+	<bean id="jndiInfo" class="com.plantronics.platform.core.provider.JndiInfo">
+        <property name="dataSource" ref="dataSource"/>
+	</bean>
+	
+</beans>

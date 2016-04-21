@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+       xmlns:mongo="http://www.springframework.org/schema/data/mongo"
+       xmlns:repository="http://www.springframework.org/schema/data/repository"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+           http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa.xsd
+           http://www.springframework.org/schema/data/repository http://www.springframework.org/schema/data/repository/spring-repository.xsd
+           http://www.springframework.org/schema/data/mongo http://www.springframework.org/schema/data/mongo/spring-mongo.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:component-scan base-package="com.plantronics.platform" />
+ 	<jpa:repositories base-package="com.plantronics.platform.core.repository" factory-class="com.plantronics.platform.core.repository.jpa.support.GenericJpaRepositoryFactoryBean">
+ 		<repository:include-filter type="annotation" expression="com.plantronics.platform.core.repository.jpa.support.JpaRepositorySupport"/>
+ 	</jpa:repositories>
+ 	
+ 	<bean class="org.springframework.orm.jpa.JpaTransactionManager" id="transactionManager">
+        <property name="entityManagerFactory" ref="entityManagerFactory" />
+        <property name="jpaDialect">
+            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaDialect" />
+        </property>
+    </bean>
+    
+    <tx:annotation-driven transaction-manager="transactionManager" />
+    
+   	<!-- This will ensure that hibernate or jpa exceptions are automatically translated into
+    Spring's generic DataAccessException hierarchy -->
+    <bean class="org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor"/>
+ 
+    <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+        <property name="packagesToScan" value="com.plantronics.platform.core.persistence.model"/>
+        <property name="jpaVendorAdapter">
+            <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter">
+                <property name="generateDdl" value="true" />
+                <property name="showSql" value="false"/>
+                <property name="databasePlatform" value="org.hibernate.dialect.MySQLDialect"/>
+                <property name="database" value="MYSQL"/>
+            </bean>
+        </property>
+        <property name="jpaProperties">
+        	<map>
+        		<entry key="hibernate.hbm2ddl.auto" value=""/>
+        		<entry key="hibernate.jdbc.batch_size" value="50"/>
+        		<entry key="hibernate.order_inserts" value="true"/>
+        		<entry key="hibernate.order_updates" value="true"/>
+        		<entry key="hibernate.cache.use_second_level_cache" value="true"/>
+        		<entry key="hibernate.cache.use_query_cache" value="true"/>
+        		<entry key="hibernate.cache.region.factory_class" value="org.hibernate.cache.ehcache.EhCacheRegionFactory" />
+        		<entry key="hibernate.cache.provider_configuration_file_resource_path" value="ehcache.xml" />
+                <entry key="hibernate.use_sql_comments" value="false"/>
+                <entry key="hibernate.format_sql" value="true"/>
+                <entry key="hibernate.generate_statistics" value="false"/>
+        		<entry key="hibernate.multiTenancy" value="SCHEMA"/>
+        		<entry key="hibernate.tenant_identifier_resolver">
+        			<bean class="com.plantronics.platform.core.repository.jpa.support.TenantIdentifierResolver"/>
+        		</entry>
+        		<entry key="hibernate.multi_tenant_connection_provider" value="com.plantronics.platform.core.repository.jpa.support.MultiTenantConnectionProviderImpl"/>
+        	</map>
+        </property>
+    </bean>
+
+    <!-- Commented For Reference Only, IN ORDER TO USE JNDI 'nosql' settings we use our 'MongoConfiguration' Java Class instead.
+
+    <mongo:db-factory dbname="metrics" />
+    <mongo:mongo id="mongoConnection" host="localhost" port ="27017" write-concern="1"/>
+
+    <bean id="mongoTemplate" class="org.springframework.data.mongodb.core.MongoTemplate">
+        <constructor-arg ref="mongoConnection"/>
+        <constructor-arg name="databaseName" value="metrics"/>
+    </bean>
+    <mongo:repositories base-package="com.plantronics.platform.core.repository.mongodb"/>
+
+    -->
+    
+    <!-- Commented For Reference Only, IN ORDER TO USE JNDI 'nosql' settings we use our 'MongoConfiguration' Java Class instead. 
+    <mongo:db-factory host="localhost" port ="27017" dbname="reports" />
+    <mongo:mapping-converter id="converter" db-factory-ref="mongoDbFactory" />
+	
+	<mongo:repositories base-package="com.plantronics.platform.core.repository.mongodb">
+    	<repository:include-filter type="annotation" expression="com.plantronics.platform.core.repository.mongodb.metrics.support.ReportsRepositorySupport"/>
+    </mongo:repositories>
+    
+    <bean id="gridFsTemplate" class="org.springframework.data.mongodb.gridfs.GridFsTemplate">
+        <constructor-arg ref="mongoDbFactory"/>
+        <constructor-arg ref="converter"/>
+    </bean>
+    -->
+</beans>    
