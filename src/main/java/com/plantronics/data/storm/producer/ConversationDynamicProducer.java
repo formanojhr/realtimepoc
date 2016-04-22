@@ -68,6 +68,9 @@ public class ConversationDynamicProducer{
 
             Double signalValue = ID + 0.5 + (repeat + 6);
             //17,2016-04-21 14:39:52,1461278392,
+            //nearEnd: dB of the person who is talking
+            //farEnd: dB of the person who replies.
+            //Duration:
             String signal = ID + "," + msgDatetime + "," + msgUnixtime + ","+ CONVERSATION_DYNAMIC_DURATION+ ","+ nearEnd +
                     ","+ farEnd + ","+ signalValue;
 

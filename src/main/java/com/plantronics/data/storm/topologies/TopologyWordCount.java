@@ -28,7 +28,7 @@ public class TopologyWordCount {
 		conf.put(Config.TOPOLOGY_MAX_SPOUT_PENDING, 1);
 		LocalCluster cluster = new LocalCluster();
 		cluster.submitTopology("Getting-Started-Toplogie", conf, builder.createTopology());
-		Thread.sleep(1000);
+		Thread.sleep(10000);
 		cluster.shutdown();
 	}
 }

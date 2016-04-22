@@ -12,6 +12,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
+import java.util.Random;
 import java.util.TimeZone;
 
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ public class kafkaProducer
 {
     private static final Logger logger = LoggerFactory.getLogger(kafkaProducer.class);
     private Producer<String, String> producer;
+    private static final String CONVERSATION_DYNAMIC_DURATION = "250";
 
     public kafkaProducer(String brokerList, String zookeeper, String topicName)
     {
@@ -46,31 +48,40 @@ public class kafkaProducer
 
         DateFormat dfm = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         dfm.setTimeZone(TimeZone.getTimeZone("GMT-8:00"));//Specify your timezone. Here is PST
+        try {
 
-        Date CurrentDate = new Date();
-        long msgUnixtime = CurrentDate.getTime()/1000;
-        String msgDatetime = dfm.format(new Date());
+            Date CurrentDate;
+            long msgUnixtime;
+            String msgDatetime;
 
+            Random r = new Random();
+            double rangeMax = 30;
+            double rangeMin = 10;
+            double cdDuration = 0;
 
-        // Create the message
-        //Version 1: use dafault partition method:
-        //KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, signal);
+            String signal;
 
-        //Version 2: use customized partition method:
-        //Here we use ID as the information for partitioner.
-        //(topic: String, key: K, message: V)
+            for (int repeat = 0; repeat < 6; repeat++) {
 
-        for (int repeat = 0; repeat < 6; repeat ++) {
+                CurrentDate = new Date();
+                msgUnixtime = CurrentDate.getTime();
+                msgDatetime = dfm.format(CurrentDate);
 
-            Double signalValue = ID + 0.5 + (repeat + 6);
-            String signal = ID + "," + msgDatetime + "," + msgUnixtime + "," + signalValue;
+                cdDuration = rangeMin + (rangeMax - rangeMin) * r.nextDouble();
 
-            KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, signal);
+                signal = ID + "," + msgDatetime + "," + msgUnixtime +
+                                "," + CONVERSATION_DYNAMIC_DURATION + "," + cdDuration;
 
-            System.out.println("Sending Messge to topic " + topic + ": " + signal );
-            logger.info("Sending Messge to topic " + topic + ": " + signal );
-            // Publish the message
-            producer.send(msg);
+                KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, signal);
+
+                logger.info("Sending messages to topic " + topic + ": " + signal);
+                // Publish the message
+                producer.send(msg);
+                Thread.sleep(100);
+            }
+        } catch (Exception e) {
+            String errMsg = "Error generating data for each device.";
+            logger.error(errMsg + ": " + e.toString());
         }
 
     }
@@ -87,16 +98,10 @@ public class kafkaProducer
 
         kafkaProducer producer = new kafkaProducer(brokerList, zookeeper, topicName);
 
-        int counter = 0;
-        try{
-            while(counter < 21){
-                producer.PublishMessage(topicName, counter);
-                counter ++;
-                Thread.sleep(10);
-            }
-        }catch (Exception e) {
-            String errMsg = "Error generating data.";
-            logger.error(errMsg + ": " + e.toString());
+        int deviceID = 0;
+        while(deviceID < 21) {
+            producer.PublishMessage(topicName, deviceID);
+            deviceID++;
         }
     }
 }
