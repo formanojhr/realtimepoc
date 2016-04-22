@@ -4,8 +4,8 @@ import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import com.plantronics.data.storm.spouts.pubnub.example.WordCounter;
-import com.plantronics.data.storm.spouts.pubnub.example.WordNormalizer;
+import com.plantronics.data.storm.spouts.example.WordCounter;
+import com.plantronics.data.storm.spouts.example.WordNormalizer;
 import com.plantronics.data.storm.bolts.example.WordReader;
 
 
