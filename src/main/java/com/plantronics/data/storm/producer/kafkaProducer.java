@@ -9,6 +9,7 @@ import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
 
 import java.text.DateFormat;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Properties;
@@ -33,9 +34,6 @@ public class kafkaProducer
         props.put("serializer.class", "kafka.serializer.StringEncoder");
         props.put("request.required.acks", "1");
 
-        //props.put("partitioner.class", "com.teng.iot.kafka.partitioner.SimplePartitioner");
-        //kafka.producer.DefaultPartitioner: based on the hash of the key
-
         // Create the Producer Configuration
         ProducerConfig config = new ProducerConfig(props);
 
@@ -58,6 +56,7 @@ public class kafkaProducer
             double rangeMax = 30;
             double rangeMin = 10;
             double cdDuration = 0;
+            DecimalFormat df = new DecimalFormat("#.####");
 
             String signal;
 
@@ -68,6 +67,7 @@ public class kafkaProducer
                 msgDatetime = dfm.format(CurrentDate);
 
                 cdDuration = rangeMin + (rangeMax - rangeMin) * r.nextDouble();
+                cdDuration = Double.valueOf(df.format(cdDuration));
 
                 signal = ID + "," + msgDatetime + "," + msgUnixtime +
                                 "," + CONVERSATION_DYNAMIC_DURATION + "," + cdDuration;
@@ -75,9 +75,9 @@ public class kafkaProducer
                 KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, signal);
 
                 logger.info("Sending messages to topic " + topic + ": " + signal);
-                // Publish the message
+                System.out.println("Sending messages to topic " + topic + ": " + signal);
                 producer.send(msg);
-                Thread.sleep(100);
+                //Thread.sleep(100);
             }
         } catch (Exception e) {
             String errMsg = "Error generating data for each device.";
@@ -99,7 +99,7 @@ public class kafkaProducer
         kafkaProducer producer = new kafkaProducer(brokerList, zookeeper, topicName);
 
         int deviceID = 0;
-        while(deviceID < 21) {
+        while(deviceID < 20) {
             producer.PublishMessage(topicName, deviceID);
             deviceID++;
         }

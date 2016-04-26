@@ -28,22 +28,14 @@ public class AlertLogBolt extends BaseRichBolt
 
     public void execute(Tuple tuple)
     {
-        Fields fields = tuple.getFields();
+
         try {
 
-            String msgStr = new String((byte[]) tuple.getValueByField(fields.get(0)), "UTF-8");
-            LOG.info("Received Msg: " + msgStr);
-
-            String[] msgStrArray = msgStr.split(",");
-
-            //String signal = ID + "," + msgDatetime + "," + msgUnixtime +
-            //"," + CONVERSATION_DYNAMIC_DURATION + "," + CDDuration;
-
-            String ID= cleanup(msgStrArray[0]);
-            String msgDatetime = cleanup(msgStrArray[1]);
-            String msgUnixtime = cleanup(msgStrArray[2]);
-            String dyDuration = cleanup(msgStrArray[3]);
-            String cdDuration = cleanup(msgStrArray[4]);
+            String ID= tuple.getStringByField("ID");
+            String msgDatetime = tuple.getStringByField("msgDatetime");
+            String msgUnixtime = tuple.getStringByField("msgUnixtime");
+            String dyDuration = tuple.getStringByField("dyDuration");
+            String cdDuration = tuple.getStringByField("cdDuration");
 
             LOG.info("Result of the LogBolt is as follows ....");
             LOG.info(ID  + "," +
