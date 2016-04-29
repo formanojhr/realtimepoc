@@ -84,6 +84,7 @@ public class AlertHBaseBolt implements IRichBolt {
     private double AlertThreshold;
     private Pubnub pubnub;
     private String sendChannel = "demo";
+    private static int TIME_WINDOW_SIZE = 1000;
 
     public AlertHBaseBolt(Properties topologyConfig) {
         this.AlertThreshold = Double.parseDouble(topologyConfig.getProperty("AlertThreshold"));
@@ -169,7 +170,7 @@ public class AlertHBaseBolt implements IRichBolt {
             String CDDT3 = HistoryInfoArray[5];
 
             //Initialize CDDAVE result value
-            double CDDAVE = 0.0;
+            int CDDAVE = 0;
             long TIMEEND = 0L;
             boolean insertFlag = false;
 
@@ -178,7 +179,7 @@ public class AlertHBaseBolt implements IRichBolt {
                 CDDT1 = String.valueOf(cdDuration);
 
                 //Calculate CDDAVE
-                CDDAVE = cdDuration;
+                CDDAVE = (int) ( cdDuration / TIME_WINDOW_SIZE * 100 / 10 );
                 TIMEEND = msgUnixtime;
                 insertFlag = true;
 
@@ -187,7 +188,7 @@ public class AlertHBaseBolt implements IRichBolt {
                 CDDT2 = String.valueOf(cdDuration);
 
                 //Calculate CDDAVE
-                CDDAVE = (Double.parseDouble(CDDT1) + cdDuration) / 2;
+                CDDAVE = (int) ((Double.parseDouble(CDDT1) + cdDuration) / 2 / TIME_WINDOW_SIZE * 100 / 10);
                 TIMEEND = msgUnixtime;
                 insertFlag = true;
 
@@ -196,7 +197,7 @@ public class AlertHBaseBolt implements IRichBolt {
                 CDDT3 = String.valueOf(cdDuration);
 
                 //Calculate CDDAVE
-                CDDAVE = (Double.parseDouble(CDDT1) + Double.parseDouble(CDDT2) + cdDuration) / 3;
+                CDDAVE = (int) ((Double.parseDouble(CDDT1) + Double.parseDouble(CDDT2) + cdDuration) / 3 / TIME_WINDOW_SIZE * 100 / 10);
                 TIMEEND = msgUnixtime;
                 insertFlag = true;
 
@@ -210,7 +211,7 @@ public class AlertHBaseBolt implements IRichBolt {
                 CDDT3 = String.valueOf(cdDuration);
 
                 //Calculate CDDAVE
-                CDDAVE = (Double.parseDouble(CDDT1) + Double.parseDouble(CDDT2) + cdDuration) / 3;
+                CDDAVE = (int) (Double.parseDouble(CDDT1) + Double.parseDouble(CDDT2) + cdDuration) / 3 / TIME_WINDOW_SIZE * 100 / 10;//DTpercentage = (DTtotal / totalDuration) * 100 return (int) DTpercentage / 10;
                 TIMEEND = msgUnixtime;
                 insertFlag = true;
 
@@ -261,19 +262,19 @@ public class AlertHBaseBolt implements IRichBolt {
         sb.append("\"");
 
         sb.append("}");
-
+        LOG.info("HBase Bolt: converting average value to JSON.... ");
         pubnub = new Pubnub(Constants.PUBNUB_PUB_KEY, Constants.PUBNUB_SUB_KEY, false);
         JSONObject jsonObject = new JSONObject(sb.toString());
-
+        LOG.info("HBase Bolt: writing to Pub NUb.... ");
         pubnub.publish(sendChannel, jsonObject, new Callback() {
             @Override
             public void successCallback(String channel, Object message) {
-
-//                queue.offer(message.toString());
+                    LOG.info("HBase bolt: SUCCESSFUL callback");
             }
 
             @Override
             public void errorCallback(String channel, PubnubError error) {
+                LOG.error("HBase bolt: Failed callback on channel: "+channel +"with error:  " +error.getErrorString());
             }});
 
 //        Thread.yield();
@@ -342,6 +343,7 @@ public class AlertHBaseBolt implements IRichBolt {
     }
 
     private List<String> getDeviceState(String deviceid) {
+        // Key : value  deviceID: <T1....Tn>
         List<String> DeviceState = new ArrayList<String>(Arrays.asList("null","null,null,null,null,null,null"));
 
         try {
