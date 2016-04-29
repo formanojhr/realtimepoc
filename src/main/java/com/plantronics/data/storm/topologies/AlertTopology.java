@@ -13,7 +13,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import backtype.storm.tuple.Fields;
-import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertHBaseBolt;
+import com.plantronics.data.storm.bolts.conversationdynamics.AlertHBaseBolt;
 import storm.kafka.BrokerHosts;
 import storm.kafka.KafkaSpout;
 import storm.kafka.SpoutConfig;
