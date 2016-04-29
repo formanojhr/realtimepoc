@@ -1,11 +1,10 @@
-package com.plantronics.data.storm.bolts.example.conversationdynamics;
+package com.plantronics.data.storm.bolts.conversationdynamics;
 
 /**
  * Created by twang on 4/26/16.
  */
 
 import java.io.UnsupportedEncodingException;
-import java.sql.Timestamp;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -15,7 +14,6 @@ import org.apache.log4j.Logger;
 import backtype.storm.spout.Scheme;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
-import org.json.JSONObject;
 
 public class AlertScheme implements Scheme {
 
@@ -25,8 +23,6 @@ public class AlertScheme implements Scheme {
     @Override
     public List<Object> deserialize(byte[] bytes) {
         try {
-
-            /*
             String msgStr = new String(bytes, "UTF-8");
             String[] msgStrArray = msgStr.split(",");
 
@@ -36,30 +32,9 @@ public class AlertScheme implements Scheme {
             String dyDuration = cleanup(msgStrArray[3]);
             String cdDuration = cleanup(msgStrArray[4]);
 
-            */
-            String deviceid="";
-            String msgDatetime="";
-            String msgUnixtime="";
-            String dyDuration="";
-            String cdDuration="";
-            try {
-                String msgStr = new String(bytes, "UTF-8");
-                System.out.println("Received JSON FORMAT Msg: " + msgStr);
-
-                JSONObject obj = new JSONObject(msgStr);
-                deviceid = obj.getString("deviceId");
-                msgDatetime = "***";
-                msgUnixtime = obj.getString("eventTime");
-                dyDuration = obj.getString("timePeriod");
-                cdDuration = obj.getString("overTalkDuration");
-            }
-            catch (Exception e){
-                logger.error("Exception while de serializing scheme ", e);
-            }
-
             return new Values(deviceid, msgDatetime, msgUnixtime, dyDuration, cdDuration);
 
-        } catch (Exception e) {
+        } catch (UnsupportedEncodingException e) {
             logger.error(e.toString());
             throw new RuntimeException(e);
         }
