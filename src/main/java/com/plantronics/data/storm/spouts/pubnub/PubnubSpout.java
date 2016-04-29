@@ -1,6 +1,7 @@
 package com.plantronics.data.storm.spouts.pubnub;
 
 import backtype.storm.Config;
+import backtype.storm.spout.MultiScheme;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -16,17 +17,29 @@ import com.pubnub.api.PubnubException;
 
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 
 /**
  * This is the PUBNUB Spout. This works as the input data stream for this Topology
  */
+
 @SuppressWarnings({"rawtypes", "serial"})
 public class PubnubSpout extends BaseRichSpout {
 
     Pubnub _pubnub;
     private SpoutOutputCollector collector;
     private LinkedBlockingQueue<String> queue;
+    MultiScheme _scheme;
+
+    public PubnubSpout() {
+
+    }
+
+    public PubnubSpout(MultiScheme scheme) {
+        this._scheme = scheme;
+    }
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
@@ -39,6 +52,7 @@ public class PubnubSpout extends BaseRichSpout {
             _pubnub.subscribe(new String[]{Constants.PUBNUB_SUB_CHANNEL}, new Callback() {
                 @Override
                 public void successCallback(String channel, Object message) {
+
                     queue.offer(message.toString());
                 }
 
@@ -57,7 +71,13 @@ public class PubnubSpout extends BaseRichSpout {
         if (ret == null) {
             Utils.sleep(50);
         } else {
-            collector.emit(new Values(ret));
+            JSONObject obj = new JSONObject(ret);
+            String ID= obj.getString("deviceId");
+            String msgDatetime = "***";
+            String msgUnixtime = obj.getString("eventTime");
+            String dyDuration = obj.getString("timePeriod");
+            String cdDuration = obj.getString("overTalkDuration");
+            collector.emit(new Values(ID, msgDatetime, msgUnixtime, dyDuration, cdDuration));
         }
     }
 
@@ -83,6 +103,7 @@ public class PubnubSpout extends BaseRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields("json"));
+        declarer.declare(new Fields("ID","msgDatetime","msgUnixtime","dyDuration","cdDuration"));
+        //declarer.declare(this._scheme.getOutputFields());
     }
 }

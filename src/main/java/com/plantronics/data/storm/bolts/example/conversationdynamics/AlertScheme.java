@@ -15,6 +15,7 @@ import org.apache.log4j.Logger;
 import backtype.storm.spout.Scheme;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
+import org.json.JSONObject;
 
 public class AlertScheme implements Scheme {
 
@@ -24,6 +25,8 @@ public class AlertScheme implements Scheme {
     @Override
     public List<Object> deserialize(byte[] bytes) {
         try {
+
+            /*
             String msgStr = new String(bytes, "UTF-8");
             String[] msgStrArray = msgStr.split(",");
 
@@ -32,6 +35,20 @@ public class AlertScheme implements Scheme {
             String msgUnixtime = cleanup(msgStrArray[2]);
             String dyDuration = cleanup(msgStrArray[3]);
             String cdDuration = cleanup(msgStrArray[4]);
+            */
+
+            String msgStr = new String(bytes, "UTF-8");
+            System.out.println("Received JSON FORMAT Msg: " + msgStr);
+
+            JSONObject obj = new JSONObject(msgStr);
+
+            String deviceid= obj.getString("deviceId");
+            String msgDatetime = "***";
+            String msgUnixtime = obj.getString("eventTime");
+            String dyDuration = obj.getString("timePeriod");
+            String cdDuration = obj.getString("overTalkDuration");
+
+
 
             return new Values(deviceid, msgDatetime, msgUnixtime, dyDuration, cdDuration);
 

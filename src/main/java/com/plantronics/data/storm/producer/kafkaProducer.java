@@ -41,11 +41,12 @@ public class kafkaProducer
         producer = new Producer<String, String>(config);
     }
 
-    public void PublishMessage(String topic, int ID)
+    public int PublishMessage(String topic)
     {
 
         DateFormat dfm = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         dfm.setTimeZone(TimeZone.getTimeZone("GMT-8:00"));//Specify your timezone. Here is PST
+        int msgCounter = 0;
         try {
 
             Date CurrentDate;
@@ -60,30 +61,33 @@ public class kafkaProducer
 
             String signal;
 
-            for (int repeat = 0; repeat < 6; repeat++) {
+            for (int ID = 0; ID < 20; ID ++) {
+                for (int repeat = 0; repeat < 6; repeat++) {
 
-                CurrentDate = new Date();
-                msgUnixtime = CurrentDate.getTime();
-                msgDatetime = dfm.format(CurrentDate);
+                    CurrentDate = new Date();
+                    msgUnixtime = CurrentDate.getTime();
+                    msgDatetime = dfm.format(CurrentDate);
 
-                cdDuration = rangeMin + (rangeMax - rangeMin) * r.nextDouble();
-                cdDuration = Double.valueOf(df.format(cdDuration));
+                    cdDuration = rangeMin + (rangeMax - rangeMin) * r.nextDouble();
+                    cdDuration = Double.valueOf(df.format(cdDuration));
 
-                signal = ID + "," + msgDatetime + "," + msgUnixtime +
-                                "," + CONVERSATION_DYNAMIC_DURATION + "," + cdDuration;
+                    signal = ID + "," + msgDatetime + "," + msgUnixtime +
+                                    "," + CONVERSATION_DYNAMIC_DURATION + "," + cdDuration;
 
-                KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, signal);
+                    KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, signal);
 
-                logger.info("Sending messages to topic " + topic + ": " + signal);
-                System.out.println("Sending messages to topic " + topic + ": " + signal);
-                producer.send(msg);
-                //Thread.sleep(100);
+                    //logger.info("Sending messages to topic " + topic + ": " + signal);
+                    System.out.println("Sending messages to topic " + topic + ": " + signal);
+                    producer.send(msg);
+                    msgCounter += 1;
+                    Thread.sleep(5);
+                }
             }
         } catch (Exception e) {
             String errMsg = "Error generating data for each device.";
             logger.error(errMsg + ": " + e.toString());
         }
-
+        return msgCounter;
     }
 
     public static void main( String[] args )
@@ -98,11 +102,16 @@ public class kafkaProducer
 
         kafkaProducer producer = new kafkaProducer(brokerList, zookeeper, topicName);
 
-        int deviceID = 0;
-        while(deviceID < 20) {
-            producer.PublishMessage(topicName, deviceID);
-            deviceID++;
-        }
+        long lStartTime = new Date().getTime();
+        int msgCounter = producer.PublishMessage(topicName);
+        //some tasks
+        long lEndTime = new Date().getTime();
+
+        long difference = lEndTime - lStartTime;
+        System.out.println("Elapsed milliseconds: " + difference);
+        System.out.println("msgCounter: " + msgCounter);
+        System.out.println("Data Rate: " + (msgCounter+0.0)*1000/difference + " messages/second" );
+
     }
 }
 
