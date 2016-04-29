@@ -17,9 +17,7 @@ import com.pubnub.api.PubnubException;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * Created by mramakrishnan on 4/12/16.
- */
+
 /**
  * This is the PUBNUB Spout. This works as the input data stream for this Topology
  */
