@@ -58,16 +58,17 @@ public class PubnubSpout extends BaseRichSpout {
             _pubnub.subscribe(new String[]{Constants.PUBNUB_SUB_CHANNEL}, new Callback() {
                 @Override
                 public void successCallback(String channel, Object message) {
-
+                    LOG.info("Successfully getting messages from channel:  " +channel);
                     queue.offer(message.toString());
                 }
 
                 @Override
                 public void errorCallback(String channel, PubnubError error) {
+                    LOG.error("Error getting a response from channel:" + channel + "with error"+ error.getErrorString());
                 }
             });
         } catch (PubnubException e) {
-            e.printStackTrace();
+           LOG.error("Pub Nub Exception:",e);
         }
     }
 
