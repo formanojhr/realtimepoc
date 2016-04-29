@@ -4,7 +4,6 @@ package com.plantronics.data.storm.topologies;
  * Created by twang on 4/28/16.
  */
 import backtype.storm.Config;
-import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.spout.SchemeAsMultiScheme;
 import backtype.storm.topology.TopologyBuilder;
@@ -14,7 +13,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import backtype.storm.tuple.Fields;
-import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertHBaseBolt;
+import com.plantronics.data.storm.bolts.conversationdynamics.AlertHBaseBolt;
 import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertPubNub;
 import com.plantronics.data.storm.spouts.pubnub.PubnubSpout;
 import storm.kafka.BrokerHosts;
