@@ -79,11 +79,11 @@ public class PubnubSpout extends BaseRichSpout {
         } else {
             try {
                 JSONObject obj = new JSONObject(ret);
-                String ID = obj.getString("deviceId");
+                String ID = obj.get("deviceId").toString();
                 String msgDatetime = "***";
-                String msgUnixtime = obj.getString("eventTime");
-                String dyDuration = obj.getString("timePeriod");
-                String cdDuration = obj.getString("overTalkDuration");
+                String msgUnixtime = obj.get("eventTime").toString();
+                String dyDuration = obj.get("timePeriod").toString();
+                String cdDuration = obj.get("overTalkDuration").toString();
                 collector.emit(new Values(ID, msgDatetime, msgUnixtime, dyDuration, cdDuration));
             }
             catch (Exception e){

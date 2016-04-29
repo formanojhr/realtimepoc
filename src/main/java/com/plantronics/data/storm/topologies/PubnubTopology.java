@@ -15,7 +15,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import backtype.storm.tuple.Fields;
+import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertPubNub;
+import com.plantronics.data.storm.common.Constants;
 import com.plantronics.data.storm.spouts.pubnub.PubnubSpout;
+import com.pubnub.api.Pubnub;
 import storm.kafka.BrokerHosts;
 import storm.kafka.KafkaSpout;
 import storm.kafka.SpoutConfig;
@@ -32,7 +35,8 @@ public class PubnubTopology
     private static final String KAFKA_SPOUT_ID = "kafkaSpout";
     private static final String PUBNUB_SPOUT_ID = "PubnubSpout";
     private static final String HBASE_BOLT_ID = "hbaseBolt";
-    private static final String LOG_TRUCK_BOLT_ID = "logBolt";
+    private static final String LOG_BOLT_ID = "logBolt";
+    private static final String PUBNUB_BOLT_ID = "pubnubBolt";
 
     protected Properties topologyConfig;
     private static final Logger LOG = Logger.getLogger(AlertTopology.class);
@@ -92,7 +96,14 @@ public class PubnubTopology
         AlertLogBolt logBolt = new AlertLogBolt();
         int logBoltCount = Integer.valueOf(topologyConfig.getProperty("logbolt.thread.count"));
         //builder.setBolt(LOG_TRUCK_BOLT_ID, logBolt,logBoltCount).fieldsGrouping(KAFKA_SPOUT_ID, new Fields("ID"));
-        builder.setBolt(LOG_TRUCK_BOLT_ID, logBolt,logBoltCount).fieldsGrouping(PUBNUB_SPOUT_ID, new Fields("ID"));
+        builder.setBolt(LOG_BOLT_ID, logBolt,logBoltCount).fieldsGrouping(PUBNUB_SPOUT_ID, new Fields("ID"));
+    }
+
+    public void constructPubNubBolt(TopologyBuilder builder)
+    {
+        AlertPubNub PubNubBolt = new AlertPubNub();
+        int pubnubBoltCount = Integer.valueOf(topologyConfig.getProperty("pubnubbolt.thread.count"));
+        builder.setBolt(PUBNUB_BOLT_ID, PubNubBolt,pubnubBoltCount).fieldsGrouping(PUBNUB_SPOUT_ID, new Fields("ID"));
     }
 
     private void buildAndSubmit() throws Exception {
@@ -103,7 +114,8 @@ public class PubnubTopology
             constructPubNubSpout(builder);
             //Add bolt
             //constructHBaseBolt(builder);
-            constructLogBolt(builder);
+            //constructLogBolt(builder);
+            constructPubNubBolt(builder);
 
             //Configure parameters and submit topology
             Config conf = new Config();
