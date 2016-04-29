@@ -36,13 +36,7 @@ public class PubnubSpout extends BaseRichSpout {
     MultiScheme _scheme;
     private static final Logger LOG = Logger.getLogger(PubnubSpout.class);
 
-    public PubnubSpout() {
 
-    }
-
-    public PubnubSpout(MultiScheme scheme) {
-        this._scheme = scheme;
-    }
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {

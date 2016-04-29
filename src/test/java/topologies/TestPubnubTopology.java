@@ -1,11 +1,10 @@
-package com.plantronics.data.storm.topologies;
+package topologies;
 
 /**
  * Created by twang on 4/28/16.
  */
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
-import backtype.storm.StormSubmitter;
 import backtype.storm.spout.SchemeAsMultiScheme;
 import backtype.storm.topology.TopologyBuilder;
 
@@ -14,9 +13,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import backtype.storm.tuple.Fields;
-import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertHBaseBolt;
 import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertPubNub;
 import com.plantronics.data.storm.spouts.pubnub.PubnubSpout;
+import com.plantronics.data.storm.topologies.AlertTopology;
 import storm.kafka.BrokerHosts;
 import storm.kafka.KafkaSpout;
 import storm.kafka.SpoutConfig;
@@ -27,7 +26,7 @@ import org.apache.log4j.Logger;
 import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertLogBolt;
 import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertScheme;
 
-public class PubnubTopology
+public class TestPubnubTopology
 {
     private static final String KAFKA_SPOUT_ID = "kafkaSpout";
     private static final String PUBNUB_SPOUT_ID = "PubnubSpout";
@@ -38,7 +37,7 @@ public class PubnubTopology
     protected Properties topologyConfig;
     private static final Logger LOG = Logger.getLogger(AlertTopology.class);
 
-    public PubnubTopology(String systemPropertiesFile, String algorithmParametersFile) throws Exception
+    public TestPubnubTopology(String systemPropertiesFile, String algorithmParametersFile) throws Exception
     {
         topologyConfig = new Properties();
         try {
@@ -81,12 +80,12 @@ public class PubnubTopology
         builder.setSpout(KAFKA_SPOUT_ID, kafkaSpout,spoutCount);
     }
 
-    public void constructHBaseBolt(TopologyBuilder builder)
+/*    public void constructHBaseBolt(TopologyBuilder builder)
     {
         AlertHBaseBolt hbaseBolt = new AlertHBaseBolt(topologyConfig);
         int HBaseBoltCount = Integer.valueOf(topologyConfig.getProperty("hbasebolt.thread.count"));
-        builder.setBolt(HBASE_BOLT_ID, hbaseBolt, HBaseBoltCount).fieldsGrouping(PUBNUB_SPOUT_ID, new Fields("ID"));
-    }
+        builder.setBolt(HBASE_BOLT_ID, hbaseBolt, HBaseBoltCount).fieldsGrouping(KAFKA_SPOUT_ID, new Fields("ID"));
+    }*/
 
     public void constructLogBolt(TopologyBuilder builder)
     {
@@ -110,7 +109,7 @@ public class PubnubTopology
             //constructKafkaSpout(builder);
             constructPubNubSpout(builder);
             //Add bolt
-            constructHBaseBolt(builder);
+            //constructHBaseBolt(builder);
             //constructLogBolt(builder);
             //constructPubNubBolt(builder);
 
@@ -118,14 +117,17 @@ public class PubnubTopology
             Config conf = new Config();
             conf.setDebug(false);
 
-            Integer topologyWorkers = Integer.valueOf(topologyConfig.getProperty("storm.topology.workers"));
-            conf.put(Config.TOPOLOGY_WORKERS, topologyWorkers);
+            //Integer topologyWorkers = Integer.valueOf(topologyConfig.getProperty("storm.topology.workers"));
+            //conf.put(Config.TOPOLOGY_WORKERS, topologyWorkers);
 
-            //LocalCluster cluster = new LocalCluster();
+            LocalCluster cluster = new LocalCluster();
 
-            StormSubmitter.submitTopology("AlertTopology", conf, builder.createTopology());
-            StormSubmitter.submitTopology(topologyConfig.getProperty("storm.topology.name"), conf, builder.createTopology());
+            //StormSubmitter.submitTopology("AlertTopology", conf, builder.createTopology());
+            cluster.submitTopology(topologyConfig.getProperty("storm.topology.name"), conf, builder.createTopology());
+            //StormSubmitter.submitTopology(topologyConfig.getProperty("storm.topology.name"), conf, builder.createTopology());
 
+            Thread.sleep(1000000000);
+            cluster.shutdown();
 
         } catch (Exception e) {
             String errMsg = "Error submiting Topology";
@@ -137,11 +139,11 @@ public class PubnubTopology
 
     public static void main(String[] str) throws Exception
     {
-        String systemPropertiesFile = "alert_topology_setting.properties";
-        //String systemPropertiesFile = "alert_topology_setting_local.properties";
+        //String systemPropertiesFile = "alert_topology_setting.properties";
+        String systemPropertiesFile = "alert_topology_setting_local.properties";
         String algorithmParametersFile = "alert_algorithms.properties";
         //Build topology
-        PubnubTopology myTopology = new PubnubTopology(systemPropertiesFile, algorithmParametersFile);
+        TestPubnubTopology myTopology = new TestPubnubTopology(systemPropertiesFile, algorithmParametersFile);
         myTopology.buildAndSubmit();
 
     }

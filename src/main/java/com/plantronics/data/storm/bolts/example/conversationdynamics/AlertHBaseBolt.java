@@ -11,6 +11,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 
+import com.plantronics.data.storm.common.Constants;
+import com.pubnub.api.Callback;
+import com.pubnub.api.Pubnub;
+import com.pubnub.api.PubnubError;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
@@ -31,6 +35,7 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
+import org.json.JSONObject;
 
 public class AlertHBaseBolt implements IRichBolt {
     private static final long serialVersionUID = 2946379346389650318L;
@@ -77,6 +82,8 @@ public class AlertHBaseBolt implements IRichBolt {
     private Table alertTable;
 
     private double AlertThreshold;
+    private Pubnub pubnub;
+    private String sendChannel = "demo";
 
     public AlertHBaseBolt(Properties topologyConfig) {
         this.AlertThreshold = Double.parseDouble(topologyConfig.getProperty("AlertThreshold"));
@@ -109,7 +116,7 @@ public class AlertHBaseBolt implements IRichBolt {
             Double cdDuration = Double.parseDouble(tuple.getStringByField("cdDuration"));
 
             // Step1: First, we store the received row of data (from KafkaSpout) into HBase table.
-            loadAllMessagesToHBase(deviceid, msgDatetime, msgUnixtime, dyDuration, cdDuration);
+            //loadAllMessagesToHBase(deviceid, msgDatetime, msgUnixtime, dyDuration, cdDuration);
 
             // Step 2: At the last step, we store device's current state HBase table.
             loadStateInfoToHBase(deviceid, msgDatetime, msgUnixtime, dyDuration, cdDuration);
@@ -212,9 +219,11 @@ public class AlertHBaseBolt implements IRichBolt {
                 //Step 2: update the DeviceState Table.
                 Put put = constructRowInsertStatus(rowKey, deviceid, T1, CDDT1, T2, CDDT2, T3, CDDT3);
                 this.stateTable.put(put);
-
-                //Step 3: insert the CDDAVE Result into table
                 if (CDDAVE > this.AlertThreshold) {
+                    //Step 3: insert data into PubNub
+                    sendDataToPubNub(deviceid, String.valueOf(TIMEEND), String.valueOf(CDDAVE));
+
+                    //Step 4: insert the CDDAVE Result into table
                     String newRowKey = deviceid + '_' + String.valueOf(TIMEEND);
                     Put alertPut = constructRowInsertAlert(newRowKey, deviceid, CDDAVE, TIMEEND);
                     this.alertTable.put(alertPut);
@@ -226,6 +235,48 @@ public class AlertHBaseBolt implements IRichBolt {
             LOG.error(errMsg + ": " + e.toString());
             throw new RuntimeException(errMsg, e);
         }
+    }
+
+
+    public void sendDataToPubNub(String ID, String msgUnixtime, String simulateAve) {
+        //Send data back to pubnub
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("{");
+
+        sb.append("\"type\":\"");
+        sb.append("HBaseAveValue");
+        sb.append("\",");
+
+        sb.append("\"deviceId\":\"");
+        sb.append(ID);
+        sb.append("\",");
+
+        sb.append("\"msgUnixtime\":\"");
+        sb.append(msgUnixtime);
+        sb.append("\",");
+
+        sb.append("\"simulateAve\":\"");
+        sb.append(simulateAve);
+        sb.append("\"");
+
+        sb.append("}");
+
+        pubnub = new Pubnub(Constants.PUBNUB_PUB_KEY, Constants.PUBNUB_SUB_KEY, false);
+        JSONObject jsonObject = new JSONObject(sb.toString());
+
+        pubnub.publish(sendChannel, jsonObject, new Callback() {
+            @Override
+            public void successCallback(String channel, Object message) {
+
+//                queue.offer(message.toString());
+            }
+
+            @Override
+            public void errorCallback(String channel, PubnubError error) {
+            }});
+
+//        Thread.yield();
     }
 
     private Put constructRowInsertStatus(String rowKey, String deviceid, String T1, String CDDT1,
