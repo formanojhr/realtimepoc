@@ -28,12 +28,16 @@ public class AlertPubNub extends BaseRichBolt {
     private OutputCollector collector;
 
     private Pubnub pubnub;
-    private String sendChannel = "demo";
+//    private String sendChannel = "demo";
 
 
     public void prepare(Map map, TopologyContext tc, OutputCollector collector) {
         //no output.
         this.collector = collector; //This collector is used later in the execute method
+        pubnub= new Pubnub(Constants.PUBNUB_PUB_KEY, Constants.PUBNUB_SUB_KEY, false);
+        LOG.info("Initialized Pub Nub client in Alert Pub Nub with pub key: "+
+                Constants.PUBNUB_PUB_KEY + "and sub key: "+ Constants.PUBNUB_SUB_KEY);
+        LOG.info("Messages for Pub Nub will be published to channel:  " + Constants.PUBNUB_PUB_CHANNEL);
     }
 
     public void sendDataToPubNub(String ID, String msgUnixtime, String simulateAve) {
@@ -43,6 +47,7 @@ public class AlertPubNub extends BaseRichBolt {
         sb.append("{");
 
         sb.append("\"type\":\"");
+        //"{\"health\":1}"
         sb.append("AveValue");
         sb.append("\",");
 
@@ -54,24 +59,24 @@ public class AlertPubNub extends BaseRichBolt {
         sb.append(msgUnixtime);
         sb.append("\",");
 
-        sb.append("\"simulateAve\":\"");
+        sb.append("\"health\":\"");//actual run-time average
         sb.append(simulateAve);
         sb.append("\"");
 
         sb.append("}");
 
-        pubnub = new Pubnub(Constants.PUBNUB_PUB_KEY, Constants.PUBNUB_SUB_KEY, false);
+//        pubnub = new Pubnub(Constants.PUBNUB_PUB_KEY, Constants.PUBNUB_SUB_KEY, false);
         JSONObject jsonObject = new JSONObject(sb.toString());
 
-        pubnub.publish(sendChannel, jsonObject, new Callback() {
+        pubnub.publish(Constants.PUBNUB_PUB_CHANNEL, jsonObject, new Callback() {
             @Override
             public void successCallback(String channel, Object message) {
-
-//                queue.offer(message.toString());
+                LOG.info("**");
             }
 
             @Override
             public void errorCallback(String channel, PubnubError error) {
+                LOG.error("Pub Nub Publish error on channel  "+ channel +"  "+ error.getErrorString());
             }});
 
 //        Thread.yield();
