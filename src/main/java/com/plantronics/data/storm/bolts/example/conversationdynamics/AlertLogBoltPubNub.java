@@ -1,4 +1,4 @@
-package com.plantronics.data.storm.bolts.conversationdynamics;
+package com.plantronics.data.storm.bolts.example.conversationdynamics;
 
 /**
  * Created by twang on 4/22/16.
@@ -13,11 +13,11 @@ import backtype.storm.tuple.Tuple;
 import java.util.Map;
 import org.apache.log4j.Logger;
 
-public class AlertLogBolt extends BaseRichBolt
+public class AlertLogBoltPubNub extends BaseRichBolt
 {
 
     private static final long serialVersionUID = 2946379346389650318L;
-    private static final Logger LOG = Logger.getLogger(AlertLogBolt.class);
+    private static final Logger LOG = Logger.getLogger(AlertLogBoltPubNub.class);
     private OutputCollector collector;
 
     public void prepare(Map map, TopologyContext tc, OutputCollector collector)
@@ -30,12 +30,27 @@ public class AlertLogBolt extends BaseRichBolt
     {
 
         try {
+            System.out.println("At the beginning, get tuple into LogBolt: " + tuple);
 
             String ID= tuple.getStringByField("ID");
             String msgDatetime = tuple.getStringByField("msgDatetime");
             String msgUnixtime = tuple.getStringByField("msgUnixtime");
             String dyDuration = tuple.getStringByField("dyDuration");
             String cdDuration = tuple.getStringByField("cdDuration");
+/*
+
+            Fields fields = tuple.getFields();
+            String msgStr = new String((byte[]) tuple.getValueByField(fields.get(0)), "UTF-8");
+            System.out.println("Received JSON FORMAT Msg: " + msgStr);
+
+            JSONObject obj = new JSONObject(msgStr);
+            String ID= obj.getString("deviceId");
+            String msgDatetime = "***";
+            String msgUnixtime = obj.getString("eventTime");
+            String dyDuration = obj.getString("timePeriod");
+            String cdDuration = obj.getString("overTalkDuration");
+
+*/
 
             LOG.info("Result of the LogBolt is as follows ....");
             LOG.info(ID  + "," +

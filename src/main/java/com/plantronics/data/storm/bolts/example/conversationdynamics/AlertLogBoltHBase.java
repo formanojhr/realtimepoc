@@ -10,15 +10,15 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
-import java.util.Map;
 import org.apache.log4j.Logger;
-import org.json.JSONObject;
 
-public class AlertLogBolt extends BaseRichBolt
+import java.util.Map;
+
+public class AlertLogBoltHBase extends BaseRichBolt
 {
 
     private static final long serialVersionUID = 2946379346389650318L;
-    private static final Logger LOG = Logger.getLogger(AlertLogBolt.class);
+    private static final Logger LOG = Logger.getLogger(AlertLogBoltHBase.class);
     private OutputCollector collector;
 
     public void prepare(Map map, TopologyContext tc, OutputCollector collector)
@@ -38,20 +38,6 @@ public class AlertLogBolt extends BaseRichBolt
             String msgUnixtime = tuple.getStringByField("msgUnixtime");
             String dyDuration = tuple.getStringByField("dyDuration");
             String cdDuration = tuple.getStringByField("cdDuration");
-/*
-
-            Fields fields = tuple.getFields();
-            String msgStr = new String((byte[]) tuple.getValueByField(fields.get(0)), "UTF-8");
-            System.out.println("Received JSON FORMAT Msg: " + msgStr);
-
-            JSONObject obj = new JSONObject(msgStr);
-            String ID= obj.getString("deviceId");
-            String msgDatetime = "***";
-            String msgUnixtime = obj.getString("eventTime");
-            String dyDuration = obj.getString("timePeriod");
-            String cdDuration = obj.getString("overTalkDuration");
-
-*/
 
             LOG.info("Result of the LogBolt is as follows ....");
             LOG.info(ID  + "," +
