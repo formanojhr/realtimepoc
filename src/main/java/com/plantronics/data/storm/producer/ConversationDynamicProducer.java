@@ -1,17 +1,25 @@
 package com.plantronics.data.storm.producer;
 
+import com.plantronics.data.storm.common.Constants;
+import com.plantronics.data.storm.producer.events.SoundEvent;
+import com.plantronics.data.storm.producer.events.SoundEventProfile;
+import com.plantronics.data.storm.producer.events.impl.OverTalkWarningEventProfile;
 import kafka.producer.KeyedMessage;
 import kafka.producer.ProducerConfig;
+import monitoring.internal.PerfLogger;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import com.google.common.util.concurrent.AtomicDouble;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by mramakrishnan on 4/21/16.
@@ -23,9 +31,23 @@ public class ConversationDynamicProducer {
     private static final String CONVERSATION_DYNAMIC_DURATION = "250";
     private static final int DEFAULT_CONVERSATION_DYNAMIC_THROUGHPUT = 1000;
     private int throughput = DEFAULT_CONVERSATION_DYNAMIC_THROUGHPUT;
-    private AtomicDouble currentThrougput;
+    private AtomicDouble currentThroughput;
+    private String timeBetweenEvents = "1000";
     private final AtomicDouble testDuration;
-    public ConversationDynamicProducer(String brokerList, String zookeeper, String topicName, String throughput) {
+    private String version = "1.0";
+    private String deviceId = "";
+    private DateTime dt;
+    private DateTimeFormatter fmt;
+    Random r = new Random();
+    private int Low = 0;
+    private int High = 3;
+    SoundEventProfile soundEventProfile = null;
+    private String[] deviceIdArr= new String[]{"12345524","12343212", "23124232", "32412323"};
+    private int numEvents = 100;
+    private final PerfLogger perfLogger;
+    public static String PRODUCER_MESSAGE_COUNT="storm.load.test.kafka.producer.cd.count";
+
+    public ConversationDynamicProducer(String brokerList, String zookeeper, String topicName, String throughput, String timePeriod) throws Exception {
         Properties props = new Properties();
         props.put("metadata.broker.list", brokerList);
         props.put("zk.connect", zookeeper);
@@ -48,22 +70,26 @@ public class ConversationDynamicProducer {
 
         // Create the Producer Instance
         producer = new KafkaProducer<String, String>(props);
-        currentThrougput= new AtomicDouble(0);
+        currentThroughput = new AtomicDouble(0);
         testDuration= new AtomicDouble(0);
         // And From your main() method or any other method
         Timer timer = new Timer();
-        timer.schedule(new PrintStats(this.currentThrougput, this.testDuration), 0, 2000);
+        timer.schedule(new PrintStats(this.currentThroughput, this.testDuration), 0, 2000);
+        this.numEvents = new Random().nextInt((1000 - 100) + 1) + 100; // range [100-1000];
+        this.dt= new DateTime();
+        this.fmt= ISODateTimeFormat.dateTime();
+        soundEventProfile = new OverTalkWarningEventProfile();
+        if(timePeriod !=null && timePeriod.isEmpty()){
+            this.timeBetweenEvents=timePeriod;
+        }
+        this.perfLogger=new PerfLogger();
+        perfLogger.init();
     }
 
 
     public void PublishMessage(String topic, int ID) throws InterruptedException {
         DateFormat dfm = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         dfm.setTimeZone(TimeZone.getTimeZone("GMT-8:00"));//Specify your timezone. Here is PST
-
-        Date CurrentDate = new Date();
-        long msgUnixtime = System.nanoTime() / 10;
-        String msgDatetime = dfm.format(new Date());
-
 
         // Create the message
         //Version 1: use dafault partition method:
@@ -81,7 +107,7 @@ public class ConversationDynamicProducer {
         long start;
         long end;
         int random_seed = 1;
-        double currentThroughput = 0;
+
         while (true) {
             start = System.nanoTime();
             int nearEnd = r.nextInt((max - min) + 1) + min;
@@ -93,16 +119,23 @@ public class ConversationDynamicProducer {
             //nearEnd: dB of the person who is talking
             //farEnd: dB of the person who replies.
             //Duration:
-            String signal = ID + "," + msgDatetime + "," + msgUnixtime + "," + CONVERSATION_DYNAMIC_DURATION + "," + nearEnd +
-                    "," + farEnd + "," + signalValue;
+//            String signal = ID + "," + msgDatetime + "," + msgUnixtime + "," + CONVERSATION_DYNAMIC_DURATION + "," + nearEnd +
+//                    "," + farEnd + "," + signalValue;
+            String jsonString="";
+            try {
+                jsonString = generateCDJSONString();
+            } catch (Exception e) {
+                System.out.println("Error generating CD json:  " + e.getMessage());
+                logger.error("Error generating CD json:", e);
+            }
 
-            KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, signal);
+            KeyedMessage<String, String> msg = new KeyedMessage<String, String>(topic, jsonString);
 
 //            System.out.println("Sending Messge to topic " + topic + ": " + signal);
-            logger.info("Sending Messge to topic " + topic + ": " + signal);
+            logger.info("Sending Message to topic " + topic + ": " + jsonString);
             this.testDuration.set(testrunTime);
-            this.currentThrougput.set(throughput_count / testrunTime);
-            if (currentThrougput.get() >= (double) this.throughput) {// Needed throughput already reached.
+            this.currentThroughput.set(throughput_count / testrunTime);
+            if (this.currentThroughput.get() >= (double) this.throughput) {// Needed throughput already reached.
                 logger.info("Hit the throughput needed " + this.throughput + " waiting to for 500 ms...");
                 System.out.println("Hit the throughput needed " + this.throughput + " waiting to for 500 ms...");
 //                System.out.println("Current throughput: " + currentThroughput + " waiting to for 500 ms...");
@@ -116,15 +149,84 @@ public class ConversationDynamicProducer {
 //            }
             // Publish the message
 //            producer.send(msg);
-            producer.send(new ProducerRecord<String, String>(topic, signal),
+            producer.send(new ProducerRecord<String, String>(topic, jsonString),
                     new ProducerCallback<String>(msg));
+            perfLogger.getPerfLoggerInstance().count(PRODUCER_MESSAGE_COUNT,1);
             end = System.nanoTime();
             throughput_count++;
-            this.currentThrougput.getAndAdd(1);
+            this.currentThroughput.getAndAdd(1);
             testrunTime = testrunTime + (double) (end - start) / 1000000000.0;//convert to seconds from nano
 //            System.out.println("Current throughput: " + this.throughput / testrunTime);
 //            System.out.println("Test runtime " + testrunTime + "(s)");
         }
+    }
+
+
+    /**
+     * Generate converstaion dynamic string and send it back string
+     */
+    private String generateCDJSONString() throws Exception {
+        deviceId=deviceIdArr[r.nextInt(High-Low) + Low];
+        logger.info("deviceId: "+deviceId);
+        DateTimeFormatter patternFormat = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ");
+        SoundEvent soundEvent = soundEventProfile.generateSoundEvent(Long.parseLong(timeBetweenEvents));
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("{");
+
+        sb.append("\"version\":\"");
+        sb.append(version);
+        sb.append("\",");
+
+        sb.append("\"type\":\"");
+        sb.append("conversationDynamic");
+        sb.append("\",");
+
+        sb.append("\""+ Constants.JSONFieldNames.TIME_STAMP+"\":");
+        sb.append("\"");
+        sb.append(fmt.print(dt));
+        sb.append("\"");
+        logger.debug("Timestamp: "+fmt.print(dt));
+        sb.append(",");
+
+        sb.append("\"deviceId\":\"");
+        sb.append(deviceId);
+        sb.append("\",");
+
+        sb.append("\""+Constants.JSONFieldNames.TIME_PERIOD+"\":");
+        sb.append(timeBetweenEvents);
+        logger.info("timeBetweenEvents: "+ timeBetweenEvents );
+        sb.append(",");
+
+        sb.append("\""+Constants.JSONFieldNames.FAR_TALK_DURATION+"\":");
+        sb.append(soundEvent.getFarEndDuration());
+        sb.append(",");
+
+        sb.append("\""+Constants.JSONFieldNames.NEAR_TALK_DURATION+"\":");
+        sb.append(soundEvent.getNearEndDuration());
+        sb.append(",");
+
+        sb.append("\""+Constants.JSONFieldNames.DOUBLE_TALK_DURATION+"\":");
+        sb.append(soundEvent.getOverTalkDuration());
+        System.out.println(soundEvent.getOverTalkDuration());
+        sb.append(",");
+
+        sb.append("\"noTalkDuration\":");
+        sb.append(soundEvent.getNoTalkDuration());
+        sb.append(",");
+
+        sb.append("\"farEndMaxDb\":");
+        sb.append(soundEvent.getFarEndMaxDb());
+        sb.append(",");
+
+        sb.append("\"nearEndMaxDb\":");
+        sb.append(soundEvent.getNearEndMaxDb());
+
+        sb.append("}");
+
+        return sb.toString();
+
     }
 
 
@@ -133,12 +235,16 @@ public class ConversationDynamicProducer {
         String zookeeper = args[1];
         String topicName = args[2];
         String throughput = args[3];
+        String timePeriod = args[4];
 
         logger.info("broker list:" + brokerList);
         logger.info("zk:" + zookeeper);
         logger.info("topicName:" + topicName);
         logger.info("throughput requested:" + throughput);
-        ConversationDynamicProducer producer = new ConversationDynamicProducer(brokerList, zookeeper, topicName, throughput);
+        logger.info("time period for CD event" + timePeriod);
+        ConversationDynamicProducer producer;
+        try{
+            producer = new ConversationDynamicProducer(brokerList, zookeeper, topicName, throughput,timePeriod);
 
         int counter = 0;
         try {
@@ -151,8 +257,12 @@ public class ConversationDynamicProducer {
             String errMsg = "Error generating data.";
             logger.error(errMsg + ": " + e.toString());
         }
+        }
+        catch (Exception e){
+            logger.info("Exception initializing ConversationDynamicProducer", e);
+            System.exit(0);
+        }
     }
-
 }
 
     class PrintStats extends TimerTask {

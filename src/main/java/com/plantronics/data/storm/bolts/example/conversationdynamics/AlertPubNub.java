@@ -24,12 +24,10 @@ import org.json.JSONObject;
 public class AlertPubNub extends BaseRichBolt {
 
     private static final long serialVersionUID = 2946379346389650318L;
-    private static final Logger LOG = Logger.getLogger(AlertLogBolt.class);
+    private static final Logger LOG = Logger.getLogger(AlertLogBoltPubNub.class);
     private OutputCollector collector;
 
     private Pubnub pubnub;
-//    private String sendChannel = "demo";
-
 
     public void prepare(Map map, TopologyContext tc, OutputCollector collector) {
         //no output.

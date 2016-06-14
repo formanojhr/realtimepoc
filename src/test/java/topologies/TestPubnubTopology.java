@@ -13,9 +13,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import backtype.storm.tuple.Fields;
+import com.plantronics.data.storm.bolts.conversationdynamics.AlertScheme;
 import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertPubNub;
 import com.plantronics.data.storm.spouts.pubnub.PubnubSpout;
-import com.plantronics.data.storm.topologies.AlertTopology;
+import com.plantronics.data.storm.topologies.AlertTopologyKafka;
+import com.plantronics.data.storm.topologies.ChannelArbitrator;
+import monitoring.internal.PerfLogger;
 import storm.kafka.BrokerHosts;
 import storm.kafka.KafkaSpout;
 import storm.kafka.SpoutConfig;
@@ -23,8 +26,7 @@ import storm.kafka.ZkHosts;
 
 import org.apache.log4j.Logger;
 
-import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertLogBolt;
-import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertScheme;
+import com.plantronics.data.storm.bolts.example.conversationdynamics.AlertLogBoltPubNub;
 
 public class TestPubnubTopology
 {
@@ -35,7 +37,7 @@ public class TestPubnubTopology
     private static final String PUBNUB_BOLT_ID = "pubnubBolt";
 
     protected Properties topologyConfig;
-    private static final Logger LOG = Logger.getLogger(AlertTopology.class);
+    private static final Logger LOG = Logger.getLogger(AlertTopologyKafka.class);
 
     public TestPubnubTopology(String systemPropertiesFile, String algorithmParametersFile) throws Exception
     {
@@ -52,44 +54,27 @@ public class TestPubnubTopology
         }
     }
 
-    public void constructPubNubSpout(TopologyBuilder builder)
+    public void constructPubNubSpout(TopologyBuilder builder, ChannelArbitrator channelArbitrator, PerfLogger perfLogger)
     {
 
         //MultiScheme scheme = new SchemeAsMultiScheme(new AlertScheme());
         //PubnubSpout pubNubSpout = new PubnubSpout(scheme);
 
-        PubnubSpout pubNubSpout = new PubnubSpout();
+        PubnubSpout pubNubSpout = new PubnubSpout(channelArbitrator, perfLogger);
         int spoutCount = Integer.valueOf(topologyConfig.getProperty("spout.thread.count"));
         builder.setSpout(PUBNUB_SPOUT_ID, pubNubSpout,spoutCount);
     }
 
-    public void constructKafkaSpout(TopologyBuilder builder)
+/*    public void constructHBasePubNubBolt(TopologyBuilder builder)
     {
-        //Set up SpoutConfig information
-        BrokerHosts hosts = new ZkHosts(topologyConfig.getProperty("kafka.zookeeper.host.port"));
-        String topic = topologyConfig.getProperty("kafka.topic");
-        String zkRoot = topologyConfig.getProperty("kafka.zkRoot");
-        String consumerGroupId = "StormSpout";
-        SpoutConfig spoutConfig = new SpoutConfig(hosts, topic, zkRoot, consumerGroupId);
-
-        // Use class KafkaSpout to set up a new Kafka Spout.
-        spoutConfig.scheme = new SchemeAsMultiScheme(new AlertScheme());
-        KafkaSpout kafkaSpout = new KafkaSpout(spoutConfig);
-
-        int spoutCount = Integer.valueOf(topologyConfig.getProperty("spout.thread.count"));
-        builder.setSpout(KAFKA_SPOUT_ID, kafkaSpout,spoutCount);
-    }
-
-/*    public void constructHBaseBolt(TopologyBuilder builder)
-    {
-        AlertHBaseBolt hbaseBolt = new AlertHBaseBolt(topologyConfig);
+        AlertBoltPubNub hbaseBolt = new AlertBoltPubNub(topologyConfig);
         int HBaseBoltCount = Integer.valueOf(topologyConfig.getProperty("hbasebolt.thread.count"));
         builder.setBolt(HBASE_BOLT_ID, hbaseBolt, HBaseBoltCount).fieldsGrouping(KAFKA_SPOUT_ID, new Fields("ID"));
     }*/
 
     public void constructLogBolt(TopologyBuilder builder)
     {
-        AlertLogBolt logBolt = new AlertLogBolt();
+        AlertLogBoltPubNub logBolt = new AlertLogBoltPubNub();
         int logBoltCount = Integer.valueOf(topologyConfig.getProperty("logbolt.thread.count"));
         //builder.setBolt(LOG_TRUCK_BOLT_ID, logBolt,logBoltCount).fieldsGrouping(KAFKA_SPOUT_ID, new Fields("ID"));
         builder.setBolt(LOG_BOLT_ID, logBolt,logBoltCount).fieldsGrouping(PUBNUB_SPOUT_ID, new Fields("ID"));
@@ -102,14 +87,15 @@ public class TestPubnubTopology
         builder.setBolt(PUBNUB_BOLT_ID, PubNubBolt,pubnubBoltCount).fieldsGrouping(PUBNUB_SPOUT_ID, new Fields("ID"));
     }
 
-    private void buildAndSubmit() throws Exception {
+    private void buildAndSubmit(PerfLogger perfLogger) throws Exception {
         try {
             TopologyBuilder builder = new TopologyBuilder();
             //Add spout
             //constructKafkaSpout(builder);
-            constructPubNubSpout(builder);
+            ChannelArbitrator channelArbitrator = new ChannelArbitrator(2,2);
+            constructPubNubSpout(builder,channelArbitrator, perfLogger);
             //Add bolt
-            //constructHBaseBolt(builder);
+            //constructHBasePubNubBolt(builder);
             //constructLogBolt(builder);
             //constructPubNubBolt(builder);
 
@@ -122,7 +108,7 @@ public class TestPubnubTopology
 
             LocalCluster cluster = new LocalCluster();
 
-            //StormSubmitter.submitTopology("AlertTopology", conf, builder.createTopology());
+            //StormSubmitter.submitTopology("AlertTopologyKafka", conf, builder.createTopology());
             cluster.submitTopology(topologyConfig.getProperty("storm.topology.name"), conf, builder.createTopology());
             //StormSubmitter.submitTopology(topologyConfig.getProperty("storm.topology.name"), conf, builder.createTopology());
 
@@ -143,8 +129,10 @@ public class TestPubnubTopology
         String systemPropertiesFile = "alert_topology_setting_local.properties";
         String algorithmParametersFile = "alert_algorithms.properties";
         //Build topology
+        PerfLogger perfLogger= new PerfLogger();
+        perfLogger.init();
         TestPubnubTopology myTopology = new TestPubnubTopology(systemPropertiesFile, algorithmParametersFile);
-        myTopology.buildAndSubmit();
+        myTopology.buildAndSubmit(perfLogger);
 
     }
 
