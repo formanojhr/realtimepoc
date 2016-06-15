@@ -13,9 +13,14 @@ import backtype.storm.topology.TopologyBuilder;
 import java.util.Properties;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 import backtype.storm.tuple.Fields;
 
+import monitoring.Metric;
+import monitoring.PeriodicMetricCollector;
+import monitoring.internal.JVMStats;
+import monitoring.internal.KafkaStats;
 import monitoring.internal.PerfLogger;
 import storm.kafka.BrokerHosts;
 import storm.kafka.KafkaSpout;
@@ -94,6 +99,15 @@ public class AlertTopologyKafka
             TopologyBuilder builder = new TopologyBuilder();
             PerfLogger perfLogger= new PerfLogger();
             perfLogger.init();
+            PeriodicMetricCollector periodicMetricCollector= new PeriodicMetricCollector();
+
+            CopyOnWriteArraySet<Metric> metrics = new CopyOnWriteArraySet<Metric>();
+            metrics.add(new KafkaStats());
+            metrics.add(new JVMStats());
+            periodicMetricCollector.setMetrics(metrics);
+
+            periodicMetricCollector.start();
+
             //Add spout
             constructKafkaSpout(builder);
             //Add bolt
