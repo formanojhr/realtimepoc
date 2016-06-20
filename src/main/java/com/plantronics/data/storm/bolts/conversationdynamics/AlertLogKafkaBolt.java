@@ -81,6 +81,7 @@ public class AlertLogKafkaBolt extends BaseRichBolt {
     private static long TIME_WINDOW_SIZE_DEFAULT = 1000;
     private PerfLogger perfLogger;
     private static String TOPOLOGY_LATENCY_METRIC="topology.kafkaalertaverage.totaltopology.latency";
+    private static String BOLT_LATENCY_METRIC="topology.kafkaalertaverage.alertbolt.latency";
 
     public AlertLogKafkaBolt(Properties topologyConfig, PerfLogger perfLogger) {
         this.AlertThreshold = Double.parseDouble(topologyConfig.getProperty("AlertThreshold"));
@@ -109,8 +110,9 @@ public class AlertLogKafkaBolt extends BaseRichBolt {
     public void execute(Tuple tuple) {
 
         try {
+//            "ID","msgUnixtime","dyDuration","cdDuration",Constants.JSONFieldNames.ORIGIN_TIME, "stormOriginTime")
+            Long start=new Date().getTime();
             String deviceid = tuple.getStringByField("ID");
-            String msgDatetime = tuple.getStringByField("msgDatetime");
             Long msgUnixtime = Long.parseLong(tuple.getStringByField("msgUnixtime"));
             String dyString=tuple.getStringByField("dyDuration");
             Long dyDuration;
@@ -130,7 +132,7 @@ public class AlertLogKafkaBolt extends BaseRichBolt {
             //loadAllMessagesToHBase(deviceid, msgDatetime, msgUnixtime, dyDuration, cdDuration);
 
             // Step 2: At the last step, we store device's current state HBase table.
-            loadStateInfoToHBase(deviceid, msgDatetime, msgUnixtime, dyDuration, cdDuration);
+            loadStateInfoToHBase(deviceid, msgUnixtime, dyDuration, cdDuration);
 
             collector.ack(tuple);
             //Push end to end latency for Storm Topology
@@ -142,6 +144,7 @@ public class AlertLogKafkaBolt extends BaseRichBolt {
                 perfLogger.init();
             }
             perfLogger.getPerfLoggerInstance().recordExecutionTime(TOPOLOGY_LATENCY_METRIC,new Date().getTime() - stormOriginTime);
+            perfLogger.getPerfLoggerInstance().recordExecutionTime(BOLT_LATENCY_METRIC, new Date().getTime() - start);
             LOG.info("Latency(ms):"+ (new Date().getTime() - stormOriginTime));
 
         } catch (Exception e) {
@@ -166,8 +169,7 @@ public class AlertLogKafkaBolt extends BaseRichBolt {
         }
     }
 
-    private void loadStateInfoToHBase(String deviceid, String msgDatetime,
-                                      Long msgUnixtime, Long dyDuration, Double cdDuration) {
+    private void loadStateInfoToHBase(String deviceid,Long msgUnixtime, Long dyDuration, Double cdDuration) {
         try {
             String rowKey = deviceid;
             List<String> currentDeviceState = new ArrayList<String>();

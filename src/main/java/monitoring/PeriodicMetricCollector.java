@@ -8,12 +8,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.log4j.Logger;
 
 import javax.annotation.PostConstruct;
 
 import monitoring.internal.PerfLogger;
 import org.apache.http.annotation.ThreadSafe;
-import org.slf4j.Logger;
+
 
 import com.timgroup.statsd.StatsDClient;
 
@@ -41,7 +42,7 @@ public class PeriodicMetricCollector {
 	private CopyOnWriteArraySet<Metric> metrics = new CopyOnWriteArraySet<Metric>();
 	private static final String PROPERTY_FILE="statsd.properties";
 
-	private static Logger log;
+	private static Logger log= org.apache.log4j.Logger.getLogger(PeriodicMetricCollector.class);
 	
 	private int metricsCollectionInterval = DEFAULT_METRICS_HARVEST_TIME_INTERVAL;
 	
