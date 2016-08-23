@@ -38,7 +38,7 @@ public class PubnubSpout extends BaseRichSpout {
     private SpoutOutputCollector collector;
     private LinkedBlockingQueue<String> queue;
     MultiScheme _scheme;
-    private static final Logger LOG = Logger.getLogger(PubnubSpout.class);
+    private static final Logger log = Logger.getLogger(PubnubSpout.class);
     private ChannelArbitrator channelArbitrator;
     private String channelName;
     private static PerfLogger perfLogger;
@@ -52,7 +52,7 @@ public class PubnubSpout extends BaseRichSpout {
         this.channelArbitrator=channelArbitrator;
         PubnubSpout.perfLogger=perfLogger;
         this.channelName=channelArbitrator.getSubChannel();
-        LOG.info("Constructing spout with channel name: "+ this.channelName);
+        log.info("Constructing spout with channel name: "+ this.channelName);
     }
 
     @Override
@@ -67,24 +67,24 @@ public class PubnubSpout extends BaseRichSpout {
 //            this.channelName =subChannel;
 
 
-            LOG.info("PubNub subscription starting...in PUB CHANNEL :" +  this.channelName);
-            LOG.info("PubNub pub key: " + Constants.PUBNUB_PUB_KEY);
-            LOG.info("PubNub sub key: " + Constants.PUBNUB_SUB_KEY);
+            log.info("PubNub subscription starting...in PUB CHANNEL :" +  this.channelName);
+            log.info("PubNub pub key: " + Constants.PUBNUB_PUB_KEY);
+            log.info("PubNub sub key: " + Constants.PUBNUB_SUB_KEY);
 //            _pubnub.subscribe(new String[]{Constants.PUBNUB_SUB_CHANNEL}, new Callback() {
             _pubnub.subscribe(new String[]{this.channelName}, new Callback() {
                 @Override
                 public void successCallback(String channel, Object message) {
-                    LOG.info("Successfully getting messages from channel:  " +channel);
+                    log.info("Successfully getting messages from channel:  " +channel);
                     queue.offer(message.toString());
                 }
 
                 @Override
                 public void errorCallback(String channel, PubnubError error) {
-                    LOG.error("Error getting a response from channel:" + channel + "with error"+ error.getErrorString());
+                    log.error("Error getting a response from channel:" + channel + "with error"+ error.getErrorString());
                 }
             });
         } catch (PubnubException e) {
-            LOG.error("Pub Nub Exception:",e);
+            log.error("Pub Nub Exception:",e);
         }
     }
 
@@ -95,6 +95,15 @@ public class PubnubSpout extends BaseRichSpout {
             Utils.sleep(50);
         } else {
             try {
+                synchronized (perfLogger) {
+                    if (perfLogger == null) {
+                        perfLogger = new PerfLogger();
+                        perfLogger.init();
+                    }
+                    if (perfLogger.getPerfLoggerInstance() == null) {
+                        perfLogger.init();
+                    }
+                }
                 perfLogger.getPerfLoggerInstance().count(String.format(PUBNUBSPOUT_COUNT_METRIC,this.channelName),1);
                 JSONObject obj = new JSONObject(ret);
                 String ID = obj.get("deviceId").toString();
@@ -107,7 +116,7 @@ public class PubnubSpout extends BaseRichSpout {
                 collector.emit(new Values(ID, msgISOtime, dyDuration, cdDuration, originTime, new Date().getTime()));
             }
             catch (Exception e){
-                LOG.error("Error deserializing Json:   ", e);
+                log.error("Error deserializing Json:   ", e);
             }
         }
     }
